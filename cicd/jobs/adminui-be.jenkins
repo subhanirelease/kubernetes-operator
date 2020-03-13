@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
-pipelineJob('build-jenkins-operator') {
-    displayName('Build jenkins-operator')
+pipelineJob('adminui-be') {
+    displayName('Build adminui-be')
 
     logRotator {
         numToKeep(10)
@@ -19,13 +19,13 @@ pipelineJob('build-jenkins-operator') {
             scm {
                 git {
                     remote {
-                        url('https://github.com/jenkinsci/kubernetes-operator.git')
-                        credentials('jenkins-operator')
+                        url('https://github.com/prabhukasisekar/kubernetes-operator.git')
+                        credentials('bitbucket')
                     }
                     branches('*/master')
                 }
             }
-            scriptPath('cicd/pipelines/build.jenkins')
+            scriptPath('cicd/pipelines/adminui-be.jenkins')
         }
     }
 }
