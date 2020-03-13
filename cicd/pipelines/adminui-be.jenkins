@@ -1,61 +1,70 @@
-<?xml version='1.1' encoding='UTF-8'?>
-<flow-definition plugin="workflow-job@2.36">
-  <actions>
-    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@1.5.1"/>
-    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@1.5.1">
-      <jobProperties/>
-      <triggers/>
-      <parameters/>
-      <options/>
-    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
-  </actions>
-  <description></description>
-  <keepDependencies>false</keepDependencies>
-  <properties>
-    <hudson.model.ParametersDefinitionProperty>
-      <parameterDefinitions>
-        <hudson.model.StringParameterDefinition>
-          <name>ENV_NAME</name>
-          <description></description>
-          <defaultValue>staging</defaultValue>
-          <trim>false</trim>
-        </hudson.model.StringParameterDefinition>
-        <hudson.model.StringParameterDefinition>
-          <name>BRANCH_NAME</name>
-          <description></description>
-          <defaultValue>dev</defaultValue>
-          <trim>false</trim>
-        </hudson.model.StringParameterDefinition>
-      </parameterDefinitions>
-    </hudson.model.ParametersDefinitionProperty>
-    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-      <triggers>
-        <com.cloudbees.jenkins.plugins.BitBucketTrigger plugin="bitbucket@1.1.11">
-          <spec></spec>
-        </com.cloudbees.jenkins.plugins.BitBucketTrigger>
-      </triggers>
-    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-  </properties>
-  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.78">
-    <scm class="hudson.plugins.git.GitSCM" plugin="git@4.0.0">
-      <configVersion>2</configVersion>
-      <userRemoteConfigs>
-        <hudson.plugins.git.UserRemoteConfig>
-          <url>https://kaspr001@bitbucket.org/riqio/riq-admin-backend.git</url>
-          <credentialsId>bitbucket</credentialsId>
-        </hudson.plugins.git.UserRemoteConfig>
-      </userRemoteConfigs>
-      <branches>
-        <hudson.plugins.git.BranchSpec>
-          <name>*/master</name>
-        </hudson.plugins.git.BranchSpec>
-      </branches>
-      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-      <submoduleCfg class="list"/>
-      <extensions/>
-    </scm>
-    <scriptPath>deployment/jenkins/build</scriptPath>
-    <lightweight>true</lightweight>
-  </definition>
-  <triggers/>
-  <disabled>true</disabled>
+pipeline {
+  environment {
+        EMAIL_TO = 'platform-team@releaseiq.io,admin-team@releaseiq.io,devops-team@releaseiq.io'
+        module="admin"
+        git_tag="${env.JOB_NAME}-${env.BUILD_NUMBER}"
+        GIT_AUTH = credentials('bitbucket')
+  }
+  agent {
+    kubernetes {
+      //Cloud Kubernetes
+      yaml """
+      kind: Pod
+      metadata:
+        name: kaniko
+      spec:
+        containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:debug-539ddefcae3fd6b411a95982a830d987f4214251
+          imagePullPolicy: IfNotPresent
+          command:
+          - cat
+          tty: true
+          volumeMounts:
+            - name: docker-config
+              mountPath: /kaniko/.docker
+        volumes:
+          - name: docker-config
+            configMap:
+              name: docker-config
+      """
+    }
+  }
+  stages {
+    stage('package') {
+      steps {
+        checkout([$class: 'GitSCM', branches: [[name: '*/$BRANCH_NAME']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'bitbucket', url: 'https://kaspr001@bitbucket.org/riqio/riq-admin-backend.git']]])
+        sh './gradlew build'
+      }
+    }
+    stage('dockerize') {
+      steps {
+        container(name: 'kaniko') {
+          sh '''      
+          /kaniko/executor --dockerfile `pwd`/Dockerfile --context `pwd` --destination=641518622681.dkr.ecr.us-west-2.amazonaws.com/riq-admin-backend:latest --destination=641518622681.dkr.ecr.us-west-2.amazonaws.com/riq-admin-backend:$BUILD_NUMBER
+          '''
+        }
+      }
+    }
+    stage('git tagging') {
+        steps {
+            sh '''
+                git config --local credential.helper "!f() { echo username=\\$GIT_AUTH_USR; echo password=\\$GIT_AUTH_PSW; }; f"
+                git tag $git_tag
+                git push origin $git_tag
+            '''
+        }
+    }
+    
+  }
+   post {  
+     success {  
+       echo "${env.JOB_NAME} Building Admin Backend Service successful"
+       mail bcc: '', body: "<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> Build URL: ${env.BUILD_URL}console", cc: '', charset: 'UTF-8', from: 'devops', mimeType: 'text/html', replyTo: '', subject: "Build Success: Project name -> ${env.JOB_NAME}", to: "${EMAIL_TO}";  
+     }  
+     failure {
+       echo "${env.JOB_NAME} Building Admin Backend Service failed"
+       mail bcc: '', body: "<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> Build URL: ${env.BUILD_URL}console", cc: '', charset: 'UTF-8', from: '', mimeType: 'text/html', replyTo: '', subject: "Build Failed: Project name -> ${env.JOB_NAME}", to: "${EMAIL_TO}";  
+     }  
+   }
+}
