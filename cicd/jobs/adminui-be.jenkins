@@ -20,12 +20,12 @@ pipelineJob('adminui-be') {
                 git {
                     remote {
                         url('https://github.com/prabhukasisekar/kubernetes-operator.git')
-                        credentials('bitbucket')
+                        credentials('github')
                     }
                     branches('*/master')
                 }
             }
-            scriptPath('cicd/pipelines/adminui-be.jenkins')
+            scriptPath('cicd/pipelines/adminuibe.jenkins')
         }
     }
 }
