@@ -1,61 +1,23 @@
-<?xml version='1.1' encoding='UTF-8'?>
-<flow-definition plugin="workflow-job@2.36">
-  <actions>
-    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@1.5.1"/>
-    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@1.5.1">
-      <jobProperties/>
-      <triggers/>
-      <parameters/>
-      <options/>
-    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
-  </actions>
-  <description></description>
-  <keepDependencies>false</keepDependencies>
-  <properties>
-    <hudson.model.ParametersDefinitionProperty>
-      <parameterDefinitions>
-        <hudson.model.StringParameterDefinition>
-          <name>ENV_NAME</name>
-          <description></description>
-          <defaultValue>staging</defaultValue>
-          <trim>false</trim>
-        </hudson.model.StringParameterDefinition>
-        <hudson.model.StringParameterDefinition>
-          <name>BRANCH_NAME</name>
-          <description></description>
-          <defaultValue>dev</defaultValue>
-          <trim>false</trim>
-        </hudson.model.StringParameterDefinition>
-      </parameterDefinitions>
-    </hudson.model.ParametersDefinitionProperty>
-    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-      <triggers>
-        <com.cloudbees.jenkins.plugins.BitBucketTrigger plugin="bitbucket@1.1.11">
-          <spec></spec>
-        </com.cloudbees.jenkins.plugins.BitBucketTrigger>
-      </triggers>
-    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-  </properties>
-  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.78">
-    <scm class="hudson.plugins.git.GitSCM" plugin="git@4.0.0">
-      <configVersion>2</configVersion>
-      <userRemoteConfigs>
-        <hudson.plugins.git.UserRemoteConfig>
-          <url>https://kaspr001@bitbucket.org/riqio/riq-admin-backend.git</url>
-          <credentialsId>bitbucket</credentialsId>
-        </hudson.plugins.git.UserRemoteConfig>
-      </userRemoteConfigs>
-      <branches>
-        <hudson.plugins.git.BranchSpec>
-          <name>*/master</name>
-        </hudson.plugins.git.BranchSpec>
-      </branches>
-      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-      <submoduleCfg class="list"/>
-      <extensions/>
-    </scm>
-    <scriptPath>deployment/jenkins/build</scriptPath>
-    <lightweight>true</lightweight>
-  </definition>
-  <triggers/>
-  <disabled>true</disabled>
+pipelineJob("adminui-be") {
+	description()
+	keepDependencies(false)
+	parameters {
+		stringParam("ENV_NAME", "staging", "")
+		stringParam("BRANCH_NAME", "dev", "")
+	}
+	definition {
+		cpsScm {
+			scm {
+				git {
+					remote {
+						github("https://kaspr001@bitbucket.org/riqio/riq-admin-backend.git", "https")
+						credentials("bitbucket")
+					}
+					branch("*/master")
+				}
+			}
+			scriptPath("deployment/jenkins/build")
+		}
+	}
+	disabled(true)
+}
