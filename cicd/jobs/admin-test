@@ -1,0 +1,34 @@
+#!/usr/bin/env groovy
+
+pipelineJob('adminui-test') {
+    displayName('Build adminui-test')
+
+    logRotator {
+        numToKeep(10)
+        daysToKeep(30)
+    }
+
+    configure { project ->
+        project / 'properties' / 'org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty' {
+            hint('PERFORMANCE_OPTIMIZED')
+        }
+    }
+	 parameters {
+		stringParam("BRANCH_NAME", "dev", "")
+		stringParam("ENV_NAME", "staging", "")
+	}
+    definition {
+        cpsScm {
+            scm {
+                git {
+                    remote {
+                        url('https://kaspr001@bitbucket.org/riqio/riq-admin-backend.git')
+                        credentials('bitbucket')
+                    }
+                    branches('*/master')
+                }
+            }
+            scriptPath('deployment/jenkins/test')
+        }
+    }
+}
