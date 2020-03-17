@@ -1,0 +1,34 @@
+#!/usr/bin/env groovy
+
+pipelineJob('adminui-build') {
+    displayName('Build adminui-build')
+
+    logRotator {
+        numToKeep(10)
+        daysToKeep(30)
+    }
+
+    configure { project ->
+        project / 'properties' / 'org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty' {
+            hint('PERFORMANCE_OPTIMIZED')
+        }
+    }
+	parameters {
+		stringParam("ENV_NAME", "staging", "")
+		stringParam("BRANCH_NAME", "dev", "")
+	}
+    definition {
+        cpsScm {
+            scm {
+                git {
+                    remote {
+                        url('https://github.com/prabhukasisekar/kubernetes-operator.git')
+                        credentials('github')
+                    }
+                    branches('*/master')
+                }
+            }
+            scriptPath('cicd/pipelines/adminuibuild.jenkins')
+        }
+    }
+}
